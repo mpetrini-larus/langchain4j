@@ -21,6 +21,13 @@ With its integration in LangChain4j, the [Neo4j Vector](https://github.com/neo4j
     <artifactId>langchain4j-community-neo4j-retriever</artifactId>
     <version>1.0.0-beta3</version>
 </dependency>
+
+<!-- if we want to use the SpringBoot starter -->
+<dependency>
+<groupId>dev.langchain4j</groupId>
+<artifactId>langchain4j-community-neo4j-spring-boot-starter</artifactId>
+<version>${langchain.version}</version>
+</dependency>
 ```
 ## APIs
 LangChain4j provides the following classes for Neo4j integration:
@@ -187,7 +194,7 @@ final List<String> texts = List.of(
 final List<TextSegment> segments = texts.stream().map(TextSegment::from).toList();
 
 List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
-        embeddingStore.addAll(embeddings, segments);
+embeddingStore.addAll(embeddings, segments);
 
 final Embedding queryEmbedding = embeddingModel.embed(fullTextSearch).content();
 
@@ -232,9 +239,8 @@ Neo4jEmbeddingStore embeddingStore = Neo4jEmbeddingStore.builder()
         .label(LABEL_TO_SANITIZE)
         .build();
 
-List<Embedding> embeddings =
-        embeddingModel.embedAll(List.of(TextSegment.from("test"))).content();
-        embeddingStore.addAll(embeddings);
+List<Embedding> embeddings = embeddingModel.embedAll(List.of(TextSegment.from("test"))).content();
+embeddingStore.addAll(embeddings);
 
 final Embedding queryEmbedding = embeddingModel.embed("Matrix").content();
 
@@ -242,12 +248,8 @@ final EmbeddingSearchRequest embeddingSearchRequest = EmbeddingSearchRequest.bui
         .queryEmbedding(queryEmbedding)
         .maxResults(3)
         .build();
-        try {
-                // should fail due to not existent index
-                embeddingStore.search(embeddingSearchRequest).matches();
-        } catch (Exception e) {
-                // error handling logic
-        }
+embeddingStore.search(embeddingSearchRequest).matches();
+     // This search will throw a ClientException: ... Variable `invalid` not defined ...
 ```
 To execute a search with a metadata filtering leveraging the `dev.langchain4j.store.embedding.filter.Filter` class:
 ```java
