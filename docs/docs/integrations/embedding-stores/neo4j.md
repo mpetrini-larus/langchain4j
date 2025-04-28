@@ -294,41 +294,92 @@ final EmbeddingSearchRequest requestWithoutFilter = EmbeddingSearchRequest.build
 final EmbeddingSearchResult<TextSegment> searchWithoutFilter = embeddingStore.search(requestWithoutFilter);
 final List<EmbeddingMatch<TextSegment>> matchesWithoutFilter = searchWithoutFilter.matches();
 ```
-To create a SpringBoot starter:
-```java
+To create a **SpringBoot starter**, the Neo4j starter provides at the time being the following `application.properties`:
+```properties
 
-@AutoConfiguration
-@EnableConfigurationProperties(Neo4jEmbeddingStoreProperties.class)
-@ConditionalOnProperty(prefix = PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
-public class Neo4jEmbeddingStoreAutoConfiguration {
+# the builder.dimension(dimension) method
+langchain4j.community.neo4j.dimension=<dimension>
+# the builder.withBasicAuth(uri, username, password) method
+langchain4j.community.neo4j.auth.uri=<boltURI>
+langchain4j.community.neo4j.auth.user=<username>
+langchain4j.community.neo4j.auth.password=<password>
+# the builder.label(label) method
+langchain4j.community.neo4j.label=<label>
+# the builder.indexName(indexName) method
+langchain4j.community.neo4j.indexName=<indexName>
+# the builder.metadataPrefix(metadataPrefix) method
+langchain4j.community.neo4j.metadataPrefix=<metadataPrefix>
+# the builder.embeddingProperty(embeddingProperty) method
+langchain4j.community.neo4j.embeddingProperty=<embeddingProperty>
+# the builder.idProperty(idProperty) method
+langchain4j.community.neo4j.idProperty=<idProperty>
+# the builder.textProperty(textProperty) method
+langchain4j.community.neo4j.textProperty=<textProperty>
+# the builder.databaseName(databaseName) method
+langchain4j.community.neo4j.databaseName=<databaseName>
+# the builder.retrievalQuery(retrievalQuery) method
+langchain4j.community.neo4j.retrievalQuery=<retrievalQuery>
+# the builder.awaitIndexTimeout(awaitIndexTimeout) method
+langchain4j.community.neo4j.awaitIndexTimeout=<awaitIndexTimeout>
+```
+Configuring the Starter allows us to create a simple SpringBoot project like the following:
+```java
+@SpringBootApplication
+public class SpringBootExample {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SpringBootExample.class, args);
+    }
 
     @Bean
-    @ConditionalOnMissingBean
-    public Neo4jEmbeddingStore neo4jEmbeddingStore(
-            Neo4jEmbeddingStoreProperties properties, @Nullable EmbeddingModel embeddingModel) {
+    public AllMiniLmL6V2EmbeddingModel embeddingModel() {
+        return new AllMiniLmL6V2EmbeddingModel();
+    }
+    
+}
 
-        Neo4jEmbeddingStoreProperties.BasicAuth auth = properties.getAuth();
-        Builder builder = Neo4jEmbeddingStore.builder()
-                .indexName(properties.getIndexName())
-                .metadataPrefix(properties.getMetadataPrefix())
-                .embeddingProperty(properties.getEmbeddingProperty())
-                .idProperty(properties.getIdProperty())
-                .label(properties.getLabel())
-                .textProperty(properties.getTextProperty())
-                .databaseName(properties.getDatabaseName())
-                .retrievalQuery(properties.getRetrievalQuery())
-                .config(properties.getConfig())
-                .driver(properties.getDriver())
-                .awaitIndexTimeout(properties.getAwaitIndexTimeout())
-                .dimension(Optional.ofNullable(embeddingModel)
-                        .map(EmbeddingModel::dimension)
-                        .orElse(properties.getDimension()));
-        if (auth != null) {
-            builder.withBasicAuth(auth.getUri(), auth.getUser(), auth.getPassword());
-        }
-        return builder.build();
+@RestController
+@RequestMapping("/api/embeddings")
+public class EmbeddingController {
+
+    private final EmbeddingStore<TextSegment> store;
+    private final EmbeddingModel model;
+
+    public EmbeddingController(EmbeddingStore<TextSegment> store, EmbeddingModel model) {
+        this.store = store;
+        this.model = model;
+    }
+
+    // add embeddings
+    @PostMapping("/add")
+    public String add(@RequestBody String text) {
+        TextSegment segment = TextSegment.from(text);
+        Embedding embedding = model.embed(text).content();
+        return store.add(embedding, segment);
+    }
+
+    // search embeddings
+    @PostMapping("/search")
+    public List<String> search(@RequestBody String query) {
+        Embedding queryEmbedding = model.embed(query).content();
+        EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                .queryEmbedding(queryEmbedding)
+                .maxResults(5)
+                .build();
+        return store.search(request).matches()
+                .stream()
+                .map(i -> i.embedded().text()).toList();
     }
 }
+```
+We have defined APIs that can be called easily, as shown here:
+```shell
+# to create a new embedding 
+# and store it with a label "SpringBoot"
+curl -X POST localhost:8083/api/embeddings/add -H "Content-Type: text/plain" -d "embeddingTest"
+
+# to search the first 5 embeddings
+curl -X POST localhost:8083/api/embeddings/search -H "Content-Type: text/plain" -d "querySearchTest"
 ```
 To create `Neo4jText2CypherRetriever` instance, you can execute with some Cypher examples:
 ```java
